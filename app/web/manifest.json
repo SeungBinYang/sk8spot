@@ -3,9 +3,9 @@
     "short_name": "sk8spot",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#000000",
+    "theme_color": "#000000",
+    "description": "스케이터가 직접 등록하고 함께 갱신하는 스케이트 스팟 지도",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
