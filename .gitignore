@@ -1,0 +1,12 @@
+# Flutter
+app/build/
+app/.dart_tool/
+app/.flutter-plugins-dependencies
+app/android/.gradle/
+app/android/local.properties
+app/ios/Pods/
+app/ios/.symlinks/
+*.apk
+
+# 로컬 환경
+.env
