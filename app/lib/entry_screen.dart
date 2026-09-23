@@ -1,5 +1,3 @@
-import 'dart:ui' show ImageFilter;
-
 import 'package:flutter/material.dart';
 
 import 'auth.dart';
@@ -64,18 +62,17 @@ class _EntryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(28, 32, 28, 28),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-          ),
-          child: Column(
+    return Container(
+      padding: const EdgeInsets.fromLTRB(28, 32, 28, 28),
+      decoration: BoxDecoration(
+        color: const Color(0xFF14161B),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 32, spreadRadius: 2),
+        ],
+      ),
+      child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Image.asset('assets/branding/logo-mark-sticker.png', height: 84),
@@ -128,8 +125,6 @@ class _EntryCard extends StatelessWidget {
               ),
             ],
           ),
-        ),
-      ),
     );
   }
 }

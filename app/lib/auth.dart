@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'env.dart';
 import 'favorites.dart';
 import 'responsive.dart';
+import 'web_redirect.dart';
 
 /// 인증. 로그인 벽은 지도 앞이 아니라 **쓰기 행동 앞**에 둔다.
 /// 열람은 전부 비회원으로 가능하다. (docs/USER_FLOWS.md)
@@ -62,13 +63,17 @@ class Auth {
       'state': state,
     });
 
-    // 웹은 현재 탭을 그대로 카카오로 보낸다(_self) — 새 탭이면 로그인 후
-    // 원래 탭이 그대로 남아 상태가 꼬인다. 모바일은 외부 브라우저를 연다.
-    await launchUrl(
-      uri,
-      webOnlyWindowName: kIsWeb ? '_self' : null,
-      mode: kIsWeb ? LaunchMode.platformDefault : LaunchMode.externalApplication,
-    );
+    if (kIsWeb) {
+      // url_launcher의 webOnlyWindowName: '_self'는 내부적으로
+      // window.open을 타는데, 브라우저의 user-activation 판정에 따라
+      // 조용히 막힐 때가 있다 — 스피너만 돌다 "로그인이 완료되지 않았어요"로
+      // 끝나는 원인이었다. location.href 직접 대입은 새 창이 아니라 같은
+      // 탭의 평범한 이동이라 그 판정을 타지 않는다.
+      redirectTo(uri.toString());
+      return;
+    }
+    // 모바일은 외부 브라우저를 연다 — 앱 프로세스는 살아있어 돌아오면 이어진다.
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   /// 앱 시작 시(웹 — 리다이렉트로 돌아온 URL) 또는 딥링크 수신 시(모바일)
