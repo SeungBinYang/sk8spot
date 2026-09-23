@@ -2,6 +2,7 @@ import 'dart:async' show unawaited;
 
 import 'package:flutter/material.dart';
 
+import 'responsive.dart';
 import 'spot.dart';
 import 'spot_sheet.dart';
 
@@ -26,42 +27,57 @@ class _FavoritesPageState extends State<FavoritesPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('즐겨찾기')),
-      body: FutureBuilder<List<SpotPin>>(
-        future: _future,
-        builder: (context, snap) {
-          if (snap.hasError) {
-            return const Center(child: Text('불러오지 못했어요'));
-          }
-          if (!snap.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final pins = snap.data!;
-          if (pins.isEmpty) {
-            return Center(
-              child: Text('저장한 스팟이 없어요',
-                  style: TextStyle(color: Colors.grey.shade600)),
+      body: ResponsiveCenter(
+        child: FutureBuilder<List<SpotPin>>(
+          future: _future,
+          builder: (context, snap) {
+            if (snap.hasError) {
+              return const Center(child: Text('불러오지 못했어요'));
+            }
+            if (!snap.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final pins = snap.data!;
+            if (pins.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Opacity(
+                      opacity: 0.6,
+                      child: Image.asset(
+                        'assets/branding/icon-flat-fullbleed.png',
+                        height: 96,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text('저장한 스팟이 없어요',
+                        style: TextStyle(color: Colors.grey.shade600)),
+                  ],
+                ),
+              );
+            }
+            return RefreshIndicator(
+              onRefresh: _refresh,
+              child: ListView.separated(
+                padding: const EdgeInsets.all(12),
+                itemCount: pins.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 8),
+                itemBuilder: (context, i) {
+                  final p = pins[i];
+                  return _FavoriteTile(
+                    pin: p,
+                    onTap: () async {
+                      await showSpotDetail(context, p);
+                      // 상세에서 즐겨찾기를 해제했을 수 있어 돌아오면 다시 불러온다.
+                      if (mounted) unawaited(_refresh());
+                    },
+                  );
+                },
+              ),
             );
-          }
-          return RefreshIndicator(
-            onRefresh: _refresh,
-            child: ListView.separated(
-              padding: const EdgeInsets.all(12),
-              itemCount: pins.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 8),
-              itemBuilder: (context, i) {
-                final p = pins[i];
-                return _FavoriteTile(
-                  pin: p,
-                  onTap: () async {
-                    await showSpotDetail(context, p);
-                    // 상세에서 즐겨찾기를 해제했을 수 있어 돌아오면 다시 불러온다.
-                    if (mounted) unawaited(_refresh());
-                  },
-                );
-              },
-            ),
-          );
-        },
+          },
+        ),
       ),
     );
   }

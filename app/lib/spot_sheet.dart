@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'auth.dart';
 import 'env.dart';
+import 'responsive.dart';
 import 'spot.dart';
 import 'spot_register.dart' show pickAndPreparePhoto;
 
@@ -38,6 +39,7 @@ Future<void> showSpotPreview(BuildContext context, SpotPin pin) {
   return showModalBottomSheet<void>(
     context: context,
     backgroundColor: Colors.white,
+    constraints: const BoxConstraints(maxWidth: kResponsiveMaxWidth),
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
     ),
@@ -84,6 +86,7 @@ Future<void> showSpotDetail(BuildContext context, SpotPin pin) {
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.white,
+    constraints: const BoxConstraints(maxWidth: kResponsiveMaxWidth),
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
     ),
@@ -609,6 +612,7 @@ Future<void> showReportSheet(BuildContext context, int spotId) async {
   final picked = await showModalBottomSheet<_ReportOption>(
     context: context,
     backgroundColor: Colors.white,
+    constraints: const BoxConstraints(maxWidth: kResponsiveMaxWidth),
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
     ),
@@ -648,6 +652,7 @@ Future<void> showReportSheet(BuildContext context, int spotId) async {
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.white,
+    constraints: const BoxConstraints(maxWidth: kResponsiveMaxWidth),
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
     ),
@@ -776,6 +781,7 @@ Future<void> showAbuseReportSheet(BuildContext context, int spotId) async {
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.white,
+    constraints: const BoxConstraints(maxWidth: kResponsiveMaxWidth),
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
     ),

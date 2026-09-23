@@ -7,6 +7,7 @@ import 'package:kakao_map_sdk/kakao_map_sdk.dart';
 
 import 'auth.dart';
 import 'photo.dart';
+import 'responsive.dart';
 import 'spot.dart';
 import 'spot_sheet.dart';
 
@@ -84,6 +85,7 @@ class _LocationPickPageState extends State<_LocationPickPage> {
         context: context,
         backgroundColor: Colors.white,
         isScrollControlled: true,
+        constraints: const BoxConstraints(maxWidth: kResponsiveMaxWidth),
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
         ),

@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'env.dart';
 import 'favorites.dart';
+import 'responsive.dart';
 
 /// 인증. 로그인 벽은 지도 앞이 아니라 **쓰기 행동 앞**에 둔다.
 /// 열람은 전부 비회원으로 가능하다. (docs/USER_FLOWS.md)
@@ -133,6 +134,7 @@ Future<bool> requireLogin(BuildContext context, String reason) async {
   final ok = await showModalBottomSheet<bool>(
     context: context,
     backgroundColor: Colors.white,
+    constraints: const BoxConstraints(maxWidth: kResponsiveMaxWidth),
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
     ),
@@ -260,6 +262,7 @@ Future<void> showMySheet(BuildContext context) {
     context: context,
     backgroundColor: Colors.white,
     isScrollControlled: true,
+    constraints: const BoxConstraints(maxWidth: kResponsiveMaxWidth),
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
     ),

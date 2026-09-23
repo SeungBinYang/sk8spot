@@ -7,8 +7,8 @@ import 'package:kakao_map_sdk/kakao_map_sdk.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'auth.dart';
+import 'auth_gate.dart';
 import 'env.dart';
-import 'map_home.dart';
 import 'spot_sheet.dart' show openSharedSpot;
 
 /// 앱 어디서든 화면을 열어야 하는 딥링크 처리부(main)가 위젯 트리 바깥에서
@@ -84,7 +84,9 @@ class Sk8SpotApp extends StatelessWidget {
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF111827)),
     ),
-    // 스플래시도 온보딩도 두지 않는다. 지도가 0.2초라도 먼저 뜨는 게 낫다.
-    home: const MapHome(),
+    // 원칙은 스플래시·온보딩 없이 지도가 먼저 뜨는 것(docs/USER_FLOWS.md).
+    // 데모용 진입 화면(AuthGate)은 세션당 한 번만 보이고, 그 다음부터는
+    // 이 원칙대로 곧장 지도로 간다 (auth_gate.dart 참조).
+    home: const AuthGate(),
   );
 }

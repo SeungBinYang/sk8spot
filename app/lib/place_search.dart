@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'responsive.dart';
 import 'spot.dart';
 
 /// 지명 검색은 스팟 조회와 분리한다. 결과를 선택하면 지도 중심만 이동한다.
@@ -10,6 +11,7 @@ Future<PlaceResult?> showPlaceSearch(BuildContext context) {
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.white,
+    constraints: const BoxConstraints(maxWidth: kResponsiveMaxWidth),
     builder: (ctx) => Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
       child: SizedBox(
