@@ -25,15 +25,19 @@ class Cluster {
   SpotPin get single => members.first;
 }
 
-/// 목표 셀 크기 ≈ 화면상 60px.
+/// 목표 셀 크기 ≈ 화면상 105px.
 /// 웹 머케이터에서 월드 폭이 256 * 2^zoom px 이므로 1px ≈ 360/(256*2^zoom) 도.
 ///
 /// ponytail: 위/경도에 같은 격자폭을 쓴다 → 고위도에서 셀이 가로로 찌그러진다.
 ///           수도권(위도 37도) 한정 MVP에는 무해. 전국 확장 시 cos(lat) 보정.
 ///
-/// 스파이크에서는 112.5(≈80px)를 썼는데 실기기에서 셀당 20~45개로 과밀했다.
-/// 실제 스팟 밀도로 재확인이 필요하다 → spike/README.md
-double cellSizeDeg(double zoom) => 84.0 / math.pow(2, zoom);
+/// 스파이크에서는 112.5(≈80px)를 썼는데 실기기에서 셀당 20~45개로 과밀했었다.
+/// 그 뒤 84(≈60px)로 낮췄지만, 실제 시드 30개(수도권 전역, 듬성듬성 분포)로
+/// 확인해보니 반대로 너무 안 뭉쳐서 지도를 축소해도 개별 마커만 흩어져
+/// 보였다 — "줌아웃해도 스팟이 잘 안 보인다"는 제보와 일치.
+/// 150(≈105px)로 다시 올려서 재확인: zoom 11에서 클러스터 20개(싱글 14개)
+/// → 10개(싱글 6개, 최대 묶음 10개)로, 줌아웃 시 뭉침이 뚜렷해졌다.
+double cellSizeDeg(double zoom) => 150.0 / math.pow(2, zoom);
 
 List<Cluster> clusterize(List<SpotPin> spots, double zoom) {
   final cell = cellSizeDeg(zoom);
