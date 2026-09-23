@@ -8,17 +8,17 @@
 
 ## 현재 상태
 
-**Phase 1·2 완료. Phase 3 착수 대기.** 스택은 **Flutter + Kakao Maps + Supabase**로 확정됐다.
+Flutter + Kakao Maps + Supabase 앱. 기존 작업은 Phase 1~6의 주요 코드와 서버 검증까지 진행됐고,
+Phase 7(공유·필터·저장)을 구현 중이다.
 
-| | 상태 |
+| 단계 | 상태 |
 |---|---|
-| Phase 0 기획 | ✅ 문서 9종 |
-| Phase 1 지도 스파이크 | ✅ **완료** — 실기기 PASS (p95 6.9ms, janky 0.3%, 마커 1000개) |
-| Phase 2 DB 스키마 | ✅ **적용·검증 완료** — Supabase `sk8spot`, 서울 리전 |
-| Phase 3 지도 홈 + 상세 | ⬜ 다음 |
+| Phase 0~2 | 기획, 지도 SDK 실기기 측정, DB 스키마 적용·검증 완료 |
+| Phase 3~6 | 지도·상세·인증·등록·제보 코드 작성 및 일부 서버 경로 검증 완료. 실기기 확인 항목은 [로드맵](docs/DEVELOPMENT_ROADMAP.md)에 남아 있음 |
+| Phase 7 | 필터·지명 검색·즐겨찾기·마지막 지도 위치·공유 링크 코드 작성. 공개 랜딩 배포와 기기 간 공유 검증 대기 |
+| Phase 8~9 | 시드 데이터, 베타, 스토어 출시 미진행 |
 
 남은 판단은 [결정 필요 사항](docs/OPEN_DECISIONS.md)에 있다.
-
 ## 문서
 
 | 문서 | 역할 |
@@ -37,8 +37,8 @@
 
 | 위치 | 내용 |
 |---|---|
-| [`app/`](app/README.md) | Flutter 앱 — 지도 홈, 스팟 상세 (Phase 3) |
-| [`supabase/`](supabase/README.md) | DB 스키마·RPC·상태 전이 트리거·검증 SQL·개발용 시드 (Phase 2) |
+| [`app/`](app/README.md) | Flutter 앱 — 지도·상세·인증·등록·제보·Phase 7 기능 |
+| [`supabase/`](supabase/README.md) | DB 스키마·RPC·상태 전이·공유 랜딩 함수·검증 SQL·개발용 시드 |
 
 Phase 1 지도 SDK 스파이크(`spike/`)는 역할이 끝나 삭제했다.
 클러스터링 구현은 `app/lib/cluster.dart`로 옮겼고, 측정 결과는

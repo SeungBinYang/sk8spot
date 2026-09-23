@@ -29,3 +29,10 @@ const kakaoRestApiKey = String.fromEnvironment(
   'KAKAO_REST_API_KEY',
   defaultValue: '544383594aa4a8fb77c33af0640b31ed',
 );
+
+/// 공개 링크 랜딩을 배포한 뒤 HTTPS 함수 주소를 넣는다.
+/// 배포 전에는 빈 값으로 두어 설치 앱용 커스텀 스킴을 계속 공유한다.
+const spotShareBaseUrl = String.fromEnvironment(
+  'SPOT_SHARE_BASE_URL',
+  defaultValue: '',
+);

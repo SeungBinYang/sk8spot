@@ -472,7 +472,7 @@ class SpotRepo {
         {'query': query, 'size': '10'});
     final res =
         await http.get(uri, headers: {'Authorization': 'KakaoAK $kakaoRestApiKey'});
-    if (res.statusCode != 200) return const [];
+    if (res.statusCode != 200) throw StateError('Place search failed');
     final docs = (jsonDecode(res.body) as Map)['documents'] as List;
     return docs.map((d) => PlaceResult.fromRow(d as Map)).toList();
   }

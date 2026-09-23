@@ -20,6 +20,9 @@
 | `migrations/0002_functions.sql` | 지도 조회 RPC, 등록/제보 RPC, 상태 전이 트리거, 운영 뷰 |
 | `migrations/0003_auth.sql` | 가입 시 프로필 자동 생성 트리거, 탈퇴/닉네임 변경 RPC |
 | `migrations/0004_storage.sql` | `spot-photos` 버킷(public) + 읽기/업로드 정책 |
+| `migrations/0005_share.sql` | 공유 스팟 1건·즐겨찾기 목록 조회 RPC. `spot_pin` 비회원 호출 HTTP 200 확인, 즐겨찾기 로그인 경로는 미검증 |
+| `functions/spot-link/` | 공개 HTTPS 공유 링크 랜딩. 아직 원격 배포 전 |
+| `config.toml` | 공개 랜딩 함수의 JWT 검증 해제. 랜딩은 읽기 전용 |
 | `functions/kakao-oidc/` | 카카오 OIDC 코드→토큰 교환 Edge Function (client_secret 서버 보관) — [ARCHITECTURE.md](../docs/ARCHITECTURE.md#️-supabase-내장-kakao-프로바이더의-함정--account_email-강제) |
 | `tests/moderation_test.sql` | 상태 전이 규칙 검증 (전부 롤백됨) |
 
@@ -37,6 +40,19 @@ Supabase 프로젝트를 만든 뒤 **SQL Editor**에 순서대로 붙여넣고 
 > Supabase 가입은 GitHub 또는 이메일로 되고 **휴대폰 본인확인이 없다.**
 > (NCP에서 막혔던 것과 다르다)
 
+## Phase 7 공유 링크 적용 순서
+
+1. `spot_pin`은 원격에서 비회원 호출 HTTP 200으로 확인됐다(2026-09-23). `my_favorite_spots`은 로그인 계정으로 별도 확인한다.
+2. `spot-link` 함수를 `sk8spot` 프로젝트에 배포한다. 이 함수는 공개 웹 링크이므로
+   `config.toml`의 `verify_jwt = false` 설정이 적용돼야 한다.
+3. 브라우저에서 `https://udirqulcxuixelzagvpg.supabase.co/functions/v1/spot-link?id=1`을 열어
+   HTTP 200과 "앱에서 스팟 열기" 버튼을 확인한다.
+4. 확인 후 앱 빌드에
+   `--dart-define=SPOT_SHARE_BASE_URL=https://udirqulcxuixelzagvpg.supabase.co/functions/v1/spot-link`
+   를 추가한다. 그 전의 빌드는 설치 앱용 커스텀 스킴을 공유한다.
+
+이 환경에는 Supabase CLI와 배포 자격 증명이 없어 `spot-link` 배포는 진행하지 않았다. 현재 해당 URL은 HTTP 404다.
+공개 랜딩은 앱 출시 전이므로 설치되지 않은 기기에는 출시 안내를 보여준다.
 ## 실제 적용에서 테스트가 잡은 버그 2개
 
 둘 다 **에러 없이 조용히 틀리는** 종류였다. 테스트가 없었으면 Phase 6까지 못 잡았을 것이다.

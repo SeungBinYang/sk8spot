@@ -1,0 +1,3 @@
+# Public, read-only landing page for spot share links.
+[functions.spot-link]
+verify_jwt = false

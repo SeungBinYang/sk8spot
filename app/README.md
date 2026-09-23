@@ -53,7 +53,7 @@ flutter run --release --target-platform android-arm64
 
 ## 파일
 
-레이어를 쌓지 않았다. 화면 2개, 쿼리 2개짜리 앱이다.
+현재 구현된 화면과 데이터 접근 코드를 아래에 정리했다.
 
 | 파일 | 역할 |
 |---|---|
@@ -61,8 +61,10 @@ flutter run --release --target-platform android-arm64
 | `env.dart` | 공개 키 (publishable / 네이티브 앱 키). **secret key는 두지 않는다** |
 | `spot.dart` | enum·모델·레포지토리 (bbox·상세·중복 탐지·등록·사진 업로드) |
 | `cluster.dart` | 격자 버킷팅 클러스터링 — 카카오 SDK에 내장이 없다 |
-| `map_home.dart` | 지도 홈. bbox 조회·debounce·마커 diff·내 위치·필터 |
-| `spot_sheet.dart` | 미리보기 시트 → 상세 시트 → 길찾기 |
+| `map_home.dart` | 지도 홈. bbox 조회·debounce·마커 diff·내 위치·로컬 필터·마지막 위치 |
+| `place_search.dart` | 카카오 지명 검색 시트와 지도 이동 결과 선택 |
+| `spot_sheet.dart` | 미리보기·상세·길찾기·제보·즐겨찾기·공유 |
+| `favorites.dart` | 저장한 스팟 목록 |
 | `auth.dart` | 카카오 OIDC 로그인, 로그인 시트, 내 정보 시트 |
 | `spot_register.dart` | 등록 흐름 (위치 지정 → 중복 확인 → 정보 입력) |
 | `photo.dart` | 업로드 전 사진 처리 — EXIF 방향 반영 후 재인코딩(메타데이터 제거), 리사이즈 |

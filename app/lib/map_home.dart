@@ -4,9 +4,11 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:kakao_map_sdk/kakao_map_sdk.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'auth.dart';
 import 'cluster.dart';
+import 'place_search.dart';
 import 'spot.dart';
 import 'spot_register.dart';
 import 'spot_sheet.dart';
@@ -25,16 +27,24 @@ class _MapHomeState extends State<MapHome> {
   // 여기서 지도를 먼저 띄운다 (docs/USER_FLOWS.md F1).
   static const _fallback = LatLng(37.5563, 126.9236); // 홍대
   static const _initialZoom = 13;
+  static const _lastLatKey = 'last_map_lat';
+  static const _lastLngKey = 'last_map_lng';
+  static const _lastZoomKey = 'last_map_zoom';
 
   final _mapKey = GlobalKey();
   KakaoMapController? _c;
 
   final Map<String, Poi> _rendered = {};
+  bool _renderInFlight = false;
+  bool _renderPending = false;
   final Map<SpotType, PoiStyle> _typeStyles = {};
   PoiStyle? _clusterStyle;
 
   List<SpotPin> _spots = [];
   String? _filterType;
+  List<SpotPin> get _visibleSpots => _filterType == null
+      ? _spots
+      : _spots.where((spot) => spot.type.name == _filterType).toList();
 
   Timer? _debounce;
   _Bbox? _lastQueried;
@@ -42,8 +52,10 @@ class _MapHomeState extends State<MapHome> {
 
   /// 동시 조회 방지. `_loading`은 setState 뒤에 켜져서 레이스를 막지 못한다.
   bool _inFlight = false;
+  bool _fetchPending = false;
   String? _error;
   bool _locating = false;
+  bool _restoringCamera = true;
 
   /// 어느 수단으로 bbox를 얻었는지. 기기마다 다를 수 있어 로그로 남긴다.
   String _bboxSource = '-';
@@ -97,11 +109,57 @@ class _MapHomeState extends State<MapHome> {
       applyDpScale: false,
       anchor: const KPoint(0.5, 0.5),
       textStyle: const [
-        PoiTextStyle(size: 20, color: Colors.white, stroke: 1, strokeColor: Colors.black38),
+        PoiTextStyle(
+          size: 20,
+          color: Colors.white,
+          stroke: 1,
+          strokeColor: Colors.black38,
+        ),
       ],
     );
 
+    await _restoreCamera();
+    _restoringCamera = false;
     await _fetch();
+  }
+
+  Future<void> _restoreCamera() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final lat = prefs.getDouble(_lastLatKey);
+      final lng = prefs.getDouble(_lastLngKey);
+      final zoom = prefs.getInt(_lastZoomKey);
+      if (lat == null ||
+          lng == null ||
+          zoom == null ||
+          !lat.isFinite ||
+          !lng.isFinite ||
+          lat.abs() > 90 ||
+          lng.abs() > 180 ||
+          zoom < 1 ||
+          zoom > 21) {
+        return;
+      }
+      await _c?.moveCamera(
+        CameraUpdate.newCenterPosition(LatLng(lat, lng), zoomLevel: zoom),
+      );
+    } catch (_) {
+      // 저장 정보가 없어도 기본 좌표에서 바로 사용할 수 있다.
+    }
+  }
+
+  Future<void> _rememberCamera() async {
+    final c = _c;
+    if (c == null || _restoringCamera) return;
+    try {
+      final pos = await c.getCameraPosition();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble(_lastLatKey, pos.position.latitude);
+      await prefs.setDouble(_lastLngKey, pos.position.longitude);
+      await prefs.setInt(_lastZoomKey, pos.zoomLevel);
+    } catch (_) {
+      // 지도 사용은 저장소 상태와 무관하게 계속된다.
+    }
   }
 
   // ── bbox 계산 ───────────────────────────────────────────────
@@ -130,7 +188,9 @@ class _MapHomeState extends State<MapHome> {
           _bboxSource = 'fromScreenPoint';
           return _Bbox.of(a.latitude, a.longitude, b.latitude, b.longitude);
         }
-      } catch (_) {/* 다음 수단으로 */}
+      } catch (_) {
+        /* 다음 수단으로 */
+      }
     }
 
     // 2순위: 플러그인이 주는 bounds.
@@ -140,9 +200,15 @@ class _MapHomeState extends State<MapHome> {
       if (b != null) {
         _bboxSource = 'getBounds';
         return _Bbox.of(
-            b.sw.latitude, b.sw.longitude, b.ne.latitude, b.ne.longitude);
+          b.sw.latitude,
+          b.sw.longitude,
+          b.ne.latitude,
+          b.ne.longitude,
+        );
       }
-    } catch (_) {/* 다음 수단으로 */}
+    } catch (_) {
+      /* 다음 수단으로 */
+    }
 
     // 3순위: 카메라 위치 + 줌으로 직접 계산. 정확하진 않지만 빈 지도보다 낫다.
     try {
@@ -151,7 +217,8 @@ class _MapHomeState extends State<MapHome> {
       // 웹 머케이터: 월드 폭 = 256 * 2^zoom px
       final degPerPx = 360.0 / (256 * math.pow(2, pos.zoomLevel));
       final halfLng = size.width / 2 * degPerPx;
-      final halfLat = size.height /
+      final halfLat =
+          size.height /
           2 *
           degPerPx *
           math.cos(pos.position.latitude * math.pi / 180);
@@ -170,6 +237,7 @@ class _MapHomeState extends State<MapHome> {
   // ── 조회 ────────────────────────────────────────────────────
 
   void _onCameraStopped() {
+    unawaited(_rememberCamera());
     // 지도를 빠르게 움직이면 요청이 폭주한다. 멈춘 뒤 400ms 기다린다.
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 400), _fetch);
@@ -180,10 +248,17 @@ class _MapHomeState extends State<MapHome> {
     // 가드를 첫 await 앞에서 동기적으로 건다.
     // await 뒤에 두면 onMapReady와 onCameraMoveEnd가 겹칠 때 여러 호출이
     // 전부 통과해 같은 쿼리가 3번씩 나간다.
-    if (c == null || _inFlight) return;
+    if (c == null) return;
+    if (_inFlight) {
+      _fetchPending = true;
+      return;
+    }
     _inFlight = true;
     try {
-      await _fetchInner();
+      do {
+        _fetchPending = false;
+        await _fetchInner();
+      } while (_fetchPending && mounted);
     } finally {
       _inFlight = false;
     }
@@ -199,7 +274,10 @@ class _MapHomeState extends State<MapHome> {
     }
 
     // 조금 움직인 정도로는 다시 부르지 않는다.
-    if (_lastQueried != null && _lastQueried!.covers(bbox)) return;
+    if (_lastQueried != null && _lastQueried!.covers(bbox)) {
+      await _render(); // 줌이 바뀌면 캐시 영역 안에서도 클러스터를 다시 계산한다.
+      return;
+    }
 
     setState(() {
       _loading = true;
@@ -214,15 +292,16 @@ class _MapHomeState extends State<MapHome> {
         minLat: padded.minLat,
         maxLng: padded.maxLng,
         maxLat: padded.maxLat,
-        filterType: _filterType,
       );
       if (!mounted) return;
       _lastQueried = padded;
       _spots = spots;
       _everFetched = true;
-      debugPrint('[sk8spot] bbox=$_bboxSource spots=${spots.length} '
-          '(${padded.minLat.toStringAsFixed(4)},${padded.minLng.toStringAsFixed(4)})'
-          '~(${padded.maxLat.toStringAsFixed(4)},${padded.maxLng.toStringAsFixed(4)})');
+      debugPrint(
+        '[sk8spot] bbox=$_bboxSource spots=${spots.length} '
+        '(${padded.minLat.toStringAsFixed(4)},${padded.minLng.toStringAsFixed(4)})'
+        '~(${padded.maxLat.toStringAsFixed(4)},${padded.maxLng.toStringAsFixed(4)})',
+      );
       await _render();
       if (mounted) setState(() => _loading = false);
     } catch (e) {
@@ -238,12 +317,36 @@ class _MapHomeState extends State<MapHome> {
   // ── 마커 렌더 ────────────────────────────────────────────────
 
   Future<void> _render() async {
+    if (_renderInFlight) {
+      _renderPending = true;
+      return;
+    }
+    _renderInFlight = true;
+    try {
+      do {
+        _renderPending = false;
+        await _renderInner();
+      } while (_renderPending && mounted);
+    } finally {
+      _renderInFlight = false;
+    }
+  }
+
+  Future<void> _renderInner() async {
     final c = _c;
     if (c == null || _clusterStyle == null) return;
 
     final pos = await c.getCameraPosition();
-    final clusters = clusterize(_spots, pos.zoomLevel.toDouble());
-    final want = {for (final cl in clusters) cl.key: cl};
+    if (!mounted) return;
+    final clusters = clusterize(_visibleSpots, pos.zoomLevel.toDouble());
+    // 셀 주소만 같아도 구성원이나 개수가 바뀔 수 있다. 내용까지 key에 넣어
+    // 숫자와 탭 대상을 오래된 클러스터에서 가져오지 않게 한다.
+    String renderKey(Cluster cl) {
+      final ids = cl.members.map((s) => s.id).toList()..sort();
+      return '${cl.key}|${ids.join(',')}';
+    }
+
+    final want = {for (final cl in clusters) renderKey(cl): cl};
     final layer = c.labelLayer;
 
     // 전체를 지우고 다시 그리면 지도가 깜빡인다. key 기준으로 diff 한다.
@@ -254,9 +357,10 @@ class _MapHomeState extends State<MapHome> {
       }
     }
     for (final cl in clusters) {
-      if (_rendered.containsKey(cl.key)) continue;
+      final key = renderKey(cl);
+      if (_rendered.containsKey(key)) continue;
       final style = cl.isSingle ? _typeStyles[cl.single.type]! : _clusterStyle!;
-      _rendered[cl.key] = await layer.addPoi(
+      _rendered[key] = await layer.addPoi(
         LatLng(cl.lat, cl.lng),
         style: style,
         text: cl.isSingle ? null : '${cl.count}',
@@ -277,8 +381,10 @@ class _MapHomeState extends State<MapHome> {
     }
     final pos = await c.getCameraPosition();
     await c.moveCamera(
-      CameraUpdate.newCenterPosition(LatLng(cl.lat, cl.lng),
-          zoomLevel: pos.zoomLevel + 2),
+      CameraUpdate.newCenterPosition(
+        LatLng(cl.lat, cl.lng),
+        zoomLevel: pos.zoomLevel + 2,
+      ),
       animation: const CameraAnimation(300),
     );
     _onCameraStopped();
@@ -317,8 +423,10 @@ class _MapHomeState extends State<MapHome> {
         ),
       );
       await c.moveCamera(
-        CameraUpdate.newCenterPosition(LatLng(p.latitude, p.longitude),
-            zoomLevel: 15),
+        CameraUpdate.newCenterPosition(
+          LatLng(p.latitude, p.longitude),
+          zoomLevel: 15,
+        ),
         animation: const CameraAnimation(400),
       );
       _onCameraStopped();
@@ -337,9 +445,23 @@ class _MapHomeState extends State<MapHome> {
   }
 
   Future<void> _setFilter(String? type) async {
+    if (_filterType == type) return;
     setState(() => _filterType = type);
-    _lastQueried = null; // 필터가 바뀌면 다시 받아야 한다
-    await _fetch();
+    await _render();
+  }
+
+  Future<void> _openPlaceSearch() async {
+    final place = await showPlaceSearch(context);
+    final c = _c;
+    if (place == null || c == null || !mounted) return;
+    await c.moveCamera(
+      CameraUpdate.newCenterPosition(
+        LatLng(place.lat, place.lng),
+        zoomLevel: 15,
+      ),
+      animation: const CameraAnimation(400),
+    );
+    _onCameraStopped();
   }
 
   // ── UI ──────────────────────────────────────────────────────
@@ -365,23 +487,47 @@ class _MapHomeState extends State<MapHome> {
 
           if (_loading)
             Positioned(
-              top: topPad, left: 0, right: 0,
+              top: topPad,
+              left: 0,
+              right: 0,
               child: const LinearProgressIndicator(minHeight: 2),
             ),
 
           Positioned(
-            top: topPad + 10, left: 12, right: 12,
+            top: topPad + 10,
+            left: 12,
+            right: 12,
             child: Row(
               children: [
                 Expanded(
-                  child: _FilterChips(
-                      selected: _filterType, onChanged: _setFilter),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: _FilterChips(
+                      selected: _filterType,
+                      onChanged: _setFilter,
+                    ),
+                  ),
+                ),
+                Material(
+                  color: Colors.white,
+                  shape: const CircleBorder(
+                    side: BorderSide(color: Color(0x22000000)),
+                  ),
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: _openPlaceSearch,
+                    child: const Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Icon(Icons.search, size: 20),
+                    ),
+                  ),
                 ),
                 // 하단 탭을 두지 않으므로 내 정보는 여기로 들어간다.
                 Material(
                   color: Colors.white,
                   shape: const CircleBorder(
-                      side: BorderSide(color: Color(0x22000000))),
+                    side: BorderSide(color: Color(0x22000000)),
+                  ),
                   child: InkWell(
                     customBorder: const CircleBorder(),
                     onTap: () => showMySheet(context),
@@ -400,7 +546,9 @@ class _MapHomeState extends State<MapHome> {
 
           if (_error != null)
             Positioned(
-              top: topPad + 58, left: 12, right: 12,
+              top: topPad + 58,
+              left: 12,
+              right: 12,
               child: _Banner(
                 text: _error!,
                 actionLabel: '다시 시도',
@@ -411,9 +559,11 @@ class _MapHomeState extends State<MapHome> {
               ),
             )
           // 조회에 성공한 적이 있을 때만 "없다"고 말한다.
-          else if (!_loading && _everFetched && _spots.isEmpty)
+          else if (!_loading && _everFetched && _visibleSpots.isEmpty)
             Positioned(
-              top: topPad + 58, left: 12, right: 12,
+              top: topPad + 58,
+              left: 12,
+              right: 12,
               child: const _Banner(text: '이 주변엔 아직 스팟이 없어요'),
             ),
 
@@ -427,8 +577,10 @@ class _MapHomeState extends State<MapHome> {
               foregroundColor: Colors.black87,
               child: _locating
                   ? const SizedBox(
-                      width: 20, height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2))
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
                   : const Icon(Icons.my_location),
             ),
           ),
@@ -469,25 +621,29 @@ class _Bbox {
 
   /// 두 모서리 순서에 상관없이 만든다.
   factory _Bbox.of(double lat1, double lng1, double lat2, double lng2) => _Bbox(
-        minLng: math.min(lng1, lng2),
-        minLat: math.min(lat1, lat2),
-        maxLng: math.max(lng1, lng2),
-        maxLat: math.max(lat1, lat2),
-      );
+    minLng: math.min(lng1, lng2),
+    minLat: math.min(lat1, lat2),
+    maxLng: math.max(lng1, lng2),
+    maxLat: math.max(lat1, lat2),
+  );
 
   _Bbox inflated(double ratio) {
     final dx = (maxLng - minLng) * ratio / 2;
     final dy = (maxLat - minLat) * ratio / 2;
     return _Bbox(
-      minLng: minLng - dx, minLat: minLat - dy,
-      maxLng: maxLng + dx, maxLat: maxLat + dy,
+      minLng: minLng - dx,
+      minLat: minLat - dy,
+      maxLng: maxLng + dx,
+      maxLat: maxLat + dy,
     );
   }
 
   /// 새 화면이 이미 받아둔 영역 안에 완전히 들어가면 재요청하지 않는다.
   bool covers(_Bbox o) =>
-      minLng <= o.minLng && minLat <= o.minLat &&
-      maxLng >= o.maxLng && maxLat >= o.maxLat;
+      minLng <= o.minLng &&
+      minLat <= o.minLat &&
+      maxLng >= o.maxLng &&
+      maxLat >= o.maxLat;
 }
 
 // ── 위젯 ──────────────────────────────────────────────────────
@@ -502,23 +658,23 @@ class _MarkerIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Directionality(
-        textDirection: TextDirection.ltr,
-        child: Container(
-          width: _markerW,
-          height: _markerH,
-          decoration: BoxDecoration(
-            color: type.color,
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(14),
-              topRight: Radius.circular(14),
-              bottomLeft: Radius.circular(14),
-              bottomRight: Radius.circular(2),
-            ),
-            border: Border.all(color: Colors.white, width: 2),
-          ),
-          child: Icon(type.icon, size: 15, color: Colors.white),
+    textDirection: TextDirection.ltr,
+    child: Container(
+      width: _markerW,
+      height: _markerH,
+      decoration: BoxDecoration(
+        color: type.color,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(14),
+          topRight: Radius.circular(14),
+          bottomLeft: Radius.circular(14),
+          bottomRight: Radius.circular(2),
         ),
-      );
+        border: Border.all(color: Colors.white, width: 2),
+      ),
+      child: Icon(type.icon, size: 15, color: Colors.white),
+    ),
+  );
 }
 
 class _ClusterBubble extends StatelessWidget {
@@ -526,14 +682,14 @@ class _ClusterBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        width: _bubbleSize,
-        height: _bubbleSize,
-        decoration: BoxDecoration(
-          color: const Color(0xFF1F2937),
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.white, width: 2.5),
-        ),
-      );
+    width: _bubbleSize,
+    height: _bubbleSize,
+    decoration: BoxDecoration(
+      color: const Color(0xFF1F2937),
+      shape: BoxShape.circle,
+      border: Border.all(color: Colors.white, width: 2.5),
+    ),
+  );
 }
 
 /// MVP 필터는 칩 3개가 전부다. 스팟이 200개일 때 난이도 필터를 걸면
@@ -573,18 +729,18 @@ class _Banner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-        color: Colors.white,
-        elevation: 2,
-        borderRadius: BorderRadius.circular(10),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
-          child: Row(
-            children: [
-              Expanded(child: Text(text, style: const TextStyle(fontSize: 13))),
-              if (actionLabel != null)
-                TextButton(onPressed: onAction, child: Text(actionLabel!)),
-            ],
-          ),
-        ),
-      );
+    color: Colors.white,
+    elevation: 2,
+    borderRadius: BorderRadius.circular(10),
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+      child: Row(
+        children: [
+          Expanded(child: Text(text, style: const TextStyle(fontSize: 13))),
+          if (actionLabel != null)
+            TextButton(onPressed: onAction, child: Text(actionLabel!)),
+        ],
+      ),
+    ),
+  );
 }

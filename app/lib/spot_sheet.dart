@@ -5,13 +5,24 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'auth.dart';
+import 'env.dart';
 import 'spot.dart';
 import 'spot_register.dart' show pickAndPreparePhoto;
 
 /// 공유 딥링크로 들어온 스팟을 상세 시트로 연다. `main.dart`의 딥링크 수신부에서
 /// 호출한다 — 스팟이 그새 지워지거나 감춰졌으면 조용히 안내만 하고 끝낸다.
 Future<void> openSharedSpot(BuildContext context, int spotId) async {
-  final pin = await SpotRepo.pinById(spotId);
+  SpotPin? pin;
+  try {
+    pin = await SpotRepo.pinById(spotId);
+  } catch (_) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('공유 스팟을 불러오지 못했어요')),
+      );
+    }
+    return;
+  }
   if (!context.mounted) return;
   if (pin == null) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -129,10 +140,13 @@ class _SpotDetailBodyState extends State<_SpotDetailBody> {
     }
   }
 
-  /// 앱 미설치 기기에서는 이 링크가 열리지 않는다 — 커스텀 스킴이라 스토어로
-  /// 보내는 웹 랜딩이 없다. 도메인을 마련하면 Universal/App Links로 바꿔야 한다.
+  /// 공개 랜딩이 배포되면 HTTPS 주소로 공유한다. 그 전에는 설치 앱용 스킴이다.
   Future<void> _share(String name) async {
-    final uri = 'com.skatespot.sk8spot://spot/${widget.pin.id}';
+    final id = widget.pin.id;
+    final base = Uri.tryParse(spotShareBaseUrl);
+    final uri = base != null && base.scheme == 'https' && base.host.isNotEmpty
+        ? base.replace(queryParameters: {'id': '$id'}).toString()
+        : 'com.skatespot.sk8spot://spot/$id';
     await SharePlus.instance.share(
       ShareParams(text: '$name — 스케이트 스팟\n$uri'),
     );

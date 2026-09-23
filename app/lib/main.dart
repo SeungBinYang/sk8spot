@@ -14,6 +14,8 @@ import 'spot_sheet.dart' show openSharedSpot;
 /// 앱 어디서든 화면을 열어야 하는 딥링크 처리부(main)가 위젯 트리 바깥에서
 /// 실행되므로, BuildContext를 얻는 유일한 통로다.
 final navigatorKey = GlobalKey<NavigatorState>();
+Uri? _lastLink;
+DateTime? _lastLinkAt;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,13 +43,24 @@ void main() async {
 }
 
 Future<void> _handleLink(Uri uri) async {
+  // 앱 시작 때 initialLink와 stream이 같은 URI를 연달아 전달할 수 있다.
+  final now = DateTime.now();
+  if (_lastLink == uri &&
+      _lastLinkAt != null &&
+      now.difference(_lastLinkAt!) < const Duration(seconds: 2)) {
+    return;
+  }
+  _lastLink = uri;
+  _lastLinkAt = now;
   if (uri.host == 'login-callback') {
     unawaited(Auth.completeKakaoLogin(uri));
     return;
   }
   if (uri.host != 'spot') return;
 
-  final id = int.tryParse(uri.pathSegments.isEmpty ? '' : uri.pathSegments.first);
+  final id = int.tryParse(
+    uri.pathSegments.isEmpty ? '' : uri.pathSegments.first,
+  );
   if (id == null) return;
 
   // 콜드 스타트 직후엔 첫 프레임이 아직 안 붙어 navigatorKey가 비어 있을 수
@@ -56,7 +69,7 @@ Future<void> _handleLink(Uri uri) async {
     await Future<void>.delayed(const Duration(milliseconds: 100));
   }
   final ctx = navigatorKey.currentContext;
-  if (ctx != null) await openSharedSpot(ctx, id);
+  if (ctx != null && ctx.mounted) await openSharedSpot(ctx, id);
 }
 
 class Sk8SpotApp extends StatelessWidget {
@@ -64,14 +77,14 @@ class Sk8SpotApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-        navigatorKey: navigatorKey,
-        title: 'Skate Spot',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          useMaterial3: true,
-          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF111827)),
-        ),
-        // 스플래시도 온보딩도 두지 않는다. 지도가 0.2초라도 먼저 뜨는 게 낫다.
-        home: const MapHome(),
-      );
+    navigatorKey: navigatorKey,
+    title: 'Skate Spot',
+    debugShowCheckedModeBanner: false,
+    theme: ThemeData(
+      useMaterial3: true,
+      colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF111827)),
+    ),
+    // 스플래시도 온보딩도 두지 않는다. 지도가 0.2초라도 먼저 뜨는 게 낫다.
+    home: const MapHome(),
+  );
 }
