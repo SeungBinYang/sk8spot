@@ -51,7 +51,10 @@ Supabase 프로젝트를 만든 뒤 **SQL Editor**에 순서대로 붙여넣고 
    `--dart-define=SPOT_SHARE_BASE_URL=https://udirqulcxuixelzagvpg.supabase.co/functions/v1/spot-link`
    를 추가한다. 그 전의 빌드는 설치 앱용 커스텀 스킴을 공유한다.
 
-이 환경에는 Supabase CLI와 배포 자격 증명이 없어 `spot-link` 배포는 진행하지 않았다. 현재 해당 URL은 HTTP 404다.
+CLI 없이 Supabase 대시보드의 Edge Functions 에디터로 `spot-link`를 배포했다(2026-09-23).
+배포 시 **"Verify JWT with legacy secret"을 반드시 꺼야 한다** — 켜진 기본값 그대로면
+비로그인 공유 링크 클릭이 게이트웨이 단에서 401로 막힌다(코드에는 도달하지 못함).
+`GET .../functions/v1/spot-link?id=1` 비인증 호출 HTTP 200 확인.
 공개 랜딩은 앱 출시 전이므로 설치되지 않은 기기에는 출시 안내를 보여준다.
 ## 실제 적용에서 테스트가 잡은 버그 2개
 
