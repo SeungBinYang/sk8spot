@@ -508,37 +508,13 @@ class _MapHomeState extends State<MapHome> {
                     ),
                   ),
                 ),
-                Material(
-                  color: Colors.white,
-                  shape: const CircleBorder(
-                    side: BorderSide(color: Color(0x22000000)),
-                  ),
-                  child: InkWell(
-                    customBorder: const CircleBorder(),
-                    onTap: _openPlaceSearch,
-                    child: const Padding(
-                      padding: EdgeInsets.all(8),
-                      child: Icon(Icons.search, size: 20),
-                    ),
-                  ),
-                ),
+                const SizedBox(width: 8),
+                _MapIconButton(icon: Icons.search, onTap: _openPlaceSearch),
+                const SizedBox(width: 8),
                 // 하단 탭을 두지 않으므로 내 정보는 여기로 들어간다.
-                Material(
-                  color: Colors.white,
-                  shape: const CircleBorder(
-                    side: BorderSide(color: Color(0x22000000)),
-                  ),
-                  child: InkWell(
-                    customBorder: const CircleBorder(),
-                    onTap: () => showMySheet(context),
-                    child: Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Icon(
-                        Auth.isLoggedIn ? Icons.person : Icons.person_outline,
-                        size: 20,
-                      ),
-                    ),
-                  ),
+                _MapIconButton(
+                  icon: Auth.isLoggedIn ? Icons.person : Icons.person_outline,
+                  onTap: () => showMySheet(context),
                 ),
               ],
             ),
@@ -694,6 +670,12 @@ class _ClusterBubble extends StatelessWidget {
 
 /// MVP 필터는 칩 3개가 전부다. 스팟이 200개일 때 난이도 필터를 걸면
 /// 결과가 3개 남는다 — 필터는 데이터가 많을 때만 유용하다.
+/// 지도 위 필터/검색/프로필의 공통 톤. 브랜드(진입 화면·앱 아이콘)와 맞춘
+/// 어두운 바탕 + 네온 그린 강조 — 기본 Material 흰 배경은 알록달록한
+/// 지도 위에서 존재감이 없었다.
+const _kMapChromeDark = Color(0xFF14161B);
+const _kMapChromeAccent = Color(0xFFD7E94A);
+
 class _FilterChips extends StatelessWidget {
   const _FilterChips({required this.selected, required this.onChanged});
   final String? selected;
@@ -711,14 +693,39 @@ class _FilterChips extends StatelessWidget {
               label: Text(label),
               selected: selected == value,
               onSelected: (_) => onChanged(value),
-              backgroundColor: Colors.white,
+              backgroundColor: _kMapChromeDark,
+              selectedColor: _kMapChromeAccent,
               showCheckmark: false,
-              side: const BorderSide(color: Color(0x22000000)),
+              side: BorderSide.none,
+              labelStyle: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: selected == value ? _kMapChromeDark : Colors.white,
+              ),
             ),
           ),
       ],
     );
   }
+}
+
+class _MapIconButton extends StatelessWidget {
+  const _MapIconButton({required this.icon, required this.onTap});
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: _kMapChromeDark,
+    shape: const CircleBorder(),
+    child: InkWell(
+      customBorder: const CircleBorder(),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Icon(icon, size: 20, color: Colors.white),
+      ),
+    ),
+  );
 }
 
 class _Banner extends StatelessWidget {
