@@ -6,7 +6,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'auth.dart';
 import 'entry_screen.dart';
 import 'map_home.dart';
-import 'responsive.dart';
 
 /// 진입 화면 게이트. 단방향이다 — 한 번 통과하면(게스트 선택이든 로그인
 /// 완료든) 세션 안에서는 다시 진입 화면으로 돌아가지 않는다. 나중에
@@ -47,6 +46,8 @@ class _AuthGateState extends State<AuthGate> {
     if (!_pastGate) {
       return EntryScreen(onPassGate: () => setState(() => _pastGate = true));
     }
-    return const ResponsiveAppFrame(child: MapHome());
+    // 지도는 다른 지도 앱들처럼 PC에서도 풀블리드로 둔다 — 좌우 여백을
+    // 뭔가로 채우려 하면 시선만 뺏기고 부자연스러워진다.
+    return const MapHome();
   }
 }

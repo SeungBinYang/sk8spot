@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'entry_video_background.dart';
-
 /// PC 브라우저에서 시트·카드가 뷰포트 전체로 늘어나지 않도록 잡아주는 최대 폭.
 /// 값 하나로 통일한다 — 화면별로 다르게 잡기 시작하면 끝이 없다.
 const kResponsiveMaxWidth = 480.0;
@@ -27,56 +25,4 @@ class ResponsiveCenter extends StatelessWidget {
       child: child,
     ),
   );
-}
-
-/// 지도 홈(메인 콘텐츠)을 위한 프레임. 뷰포트가 지도 앱이 필요로 하는 폭보다
-/// 넓어지면(PC 브라우저) 지도를 뷰포트 전체로 늘리는 대신 가운데로 폭을
-/// 잡고, 좌우 여백엔 진입 화면과 같은 블러 영상 배경을 이어서 보여준다 —
-/// 여백이 죽은 공간이 아니라 같은 톤의 배경이 되게.
-class ResponsiveAppFrame extends StatelessWidget {
-  const ResponsiveAppFrame({super.key, required this.child});
-
-  final Widget child;
-
-  static const _contentMaxWidth = 960.0;
-
-  @override
-  Widget build(BuildContext context) {
-    final width = MediaQuery.sizeOf(context).width;
-    if (width <= _contentMaxWidth) return child;
-
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        const DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0xFF111827), Colors.black],
-            ),
-          ),
-        ),
-        const EntryVideoBackground(youtubeId: kEntryYoutubeId),
-        Container(color: Colors.black.withValues(alpha: 0.55)),
-        Center(
-          child: SizedBox(
-            width: _contentMaxWidth,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.45),
-                    blurRadius: 48,
-                    spreadRadius: 2,
-                  ),
-                ],
-              ),
-              child: ClipRect(child: child),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 }
